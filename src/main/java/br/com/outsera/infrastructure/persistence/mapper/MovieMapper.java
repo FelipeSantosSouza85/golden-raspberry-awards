@@ -28,12 +28,12 @@ public class MovieMapper {
 
     public Movie toDomain(MovieEntity movieEntity) {
         return new Movie(
-                movieEntity.getId(),
-                movieEntity.getYear(),
-                movieEntity.getTitle(),
-                movieEntity.getStudios(),
-                movieEntity.getProducers(),
-                movieEntity.getWinner()
+                movieEntity.id,
+                movieEntity.year,
+                movieEntity.title,
+                movieEntity.studios,
+                movieEntity.producers,
+                movieEntity.winner
         );
     }
 

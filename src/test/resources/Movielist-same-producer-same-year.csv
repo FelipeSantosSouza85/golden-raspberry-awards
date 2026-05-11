@@ -1,0 +1,4 @@
+year;title;studios;producers;winner
+1990;Same Year First Win;Same Year Studio;Producer Same Year;yes
+1990;Same Year Duplicate Win;Same Year Studio;Producer Same Year;yes
+2010;Same Year Later Win;Same Year Studio;Producer Same Year;yes

@@ -44,6 +44,22 @@ class ProducerAwardIntervalResourceTest {
     }
 
     @Test
+    void should_calculateProducerInterval_whenWinnerLineHasMultipleProducersSeparatedByAnd() {
+        Response response = given()
+                .when()
+                .get(ENDPOINT)
+                .then()
+                .statusCode(200)
+                .contentType(MediaType.APPLICATION_JSON)
+                .extract().response();
+
+        List<Map<String, Object>> minItems = response.jsonPath().getList("min");
+
+        assertNotNull(minItems, "lista 'min' nao deve ser nula");
+        assertContainsInterval(minItems, "Joel Silver", 1, 1990, 1991);
+    }
+
+    @Test
     void should_shareSameIntervalAcrossAllMinAndMaxItems() {
         Response response = given()
                 .when()
@@ -84,6 +100,22 @@ class ProducerAwardIntervalResourceTest {
             assertTrue(previousWin < followingWin, "previousWin deve ser < followingWin");
             assertEquals(interval, followingWin - previousWin, "interval deve ser igual a (followingWin - previousWin)");
         }
+    }
+
+    private static void assertContainsInterval(
+            List<Map<String, Object>> items,
+            String expectedProducer,
+            int expectedInterval,
+            int expectedPreviousWin,
+            int expectedFollowingWin
+    ) {
+        boolean found = items.stream()
+                .anyMatch(item -> expectedProducer.equals(item.get("producer"))
+                        && expectedInterval == intValue(item.get("interval"))
+                        && expectedPreviousWin == intValue(item.get("previousWin"))
+                        && expectedFollowingWin == intValue(item.get("followingWin")));
+
+        assertTrue(found, () -> "intervalo esperado nao encontrado para o produtor: " + expectedProducer);
     }
 
     private static int intValue(Object value) {

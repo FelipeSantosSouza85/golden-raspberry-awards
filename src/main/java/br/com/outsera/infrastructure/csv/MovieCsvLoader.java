@@ -53,13 +53,13 @@ public class MovieCsvLoader {
         }
     }
 
-    private MovieCsv toRecord(CSVRecord record) {
+    private MovieCsv toRecord(CSVRecord csvRecord) {
         return new MovieCsv(
-                Integer.valueOf(record.get(HeadersCsv.YEAR.getHeader())),
-                record.get(HeadersCsv.TITLE.getHeader()),
-                record.get(HeadersCsv.STUDIOS.getHeader()),
-                record.get(HeadersCsv.PRODUCERS.getHeader()),
-                isWinner(record.get(HeadersCsv.WINNER.getHeader()))
+                Integer.valueOf(csvRecord.get(HeadersCsv.YEAR.getHeader())),
+                csvRecord.get(HeadersCsv.TITLE.getHeader()),
+                csvRecord.get(HeadersCsv.STUDIOS.getHeader()),
+                csvRecord.get(HeadersCsv.PRODUCERS.getHeader()),
+                isWinner(csvRecord.get(HeadersCsv.WINNER.getHeader()))
         );
     }
 

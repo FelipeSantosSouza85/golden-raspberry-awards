@@ -42,28 +42,4 @@ public class MovieEntity extends PanacheEntityBase {
         this.winner = winner;
     }
 
-    public Long getId() {
-        return id;
-    }
-
-    public Integer getYear() {
-        return year;
-    }
-
-    public String getTitle() {
-        return title;
-    }
-
-    public String getStudios() {
-        return studios;
-    }
-
-    public String getProducers() {
-        return producers;
-    }
-
-    public Boolean getWinner() {
-        return winner;
-    }
-
 }

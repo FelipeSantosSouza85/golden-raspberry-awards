@@ -57,7 +57,9 @@ Os testes sobem o contexto Quarkus completo, carregam o CSV em H2 em memória e 
 
 - Resposta no formato esperado pela especificação para o CSV padrão.
 - Invariantes do contrato (consistência do `interval`, ordenação `previousWin < followingWin`, `min ≤ max`) — passam com qualquer CSV de entrada.
+- Cálculo de intervalo quando a linha vencedora tem múltiplos produtores separados por `and`, usando uma situação já presente no CSV padrão.
 - Situação de empate simultâneo em `min` e `max`, usando o CSV de teste `src/test/resources/Movielist-tie-min-max.csv` via `QuarkusTestProfile`.
+- Situação em que o mesmo produtor vence duas vezes no mesmo ano, usando o CSV de teste `src/test/resources/Movielist-same-producer-same-year.csv` para garantir que `interval = 0` não seja retornado.
 
 ---
 
@@ -107,7 +109,6 @@ Exemplo de resposta:
 ## Documentação OpenAPI / Swagger UI
 
 - **Swagger UI**: <http://localhost:8080/golden-raspberry-awards/api/q/swagger-ui>
-- **Especificação OpenAPI (JSON)**: <http://localhost:8080/golden-raspberry-awards/api/q/openapi>
 
 ---
 
@@ -136,7 +137,8 @@ src/main/java/br/com/outsera/
 ├── domain/           → Modelo de domínio (records, sem dependências de framework)
 └── infrastructure/   → Persistência (JPA/Panache), leitura de CSV, inicialização
 src/test/resources/
-└── Movielist-tie-min-max.csv → Massa isolada para validar empates em min e max
+├── Movielist-tie-min-max.csv → Massa isolada para validar empates em min e max
+└── Movielist-same-producer-same-year.csv → Massa isolada para validar vitórias duplicadas no mesmo ano
 ```
 
 ---
