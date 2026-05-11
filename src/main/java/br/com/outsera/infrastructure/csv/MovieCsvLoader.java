@@ -1,6 +1,7 @@
 package br.com.outsera.infrastructure.csv;
 
 import java.io.BufferedReader;
+import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
@@ -48,19 +49,31 @@ public class MovieCsvLoader {
                     .map(this::toRecord)
                     .toList();
 
-        } catch (Exception exception) {
-            throw new CsvLoadException("Falha ao ler o arquivo CSV: " + fileName, exception);
+        } catch (IOException ex) {
+            throw new CsvLoadException("Falha de I/O ao ler o CSV: " + fileName, ex);
+        } catch (IllegalArgumentException ex) {
+            throw new CsvLoadException("CSV com formato invalido: " + fileName, ex);
         }
     }
 
+    /**
+     * Converte um registro do CSV em um objeto MovieCsv. 
+     * O método realiza a conversão dos campos e trata possíveis erros de formatação, como anos inválidos.   
+     * @param csvRecord O registro do CSV a ser convertido.
+     * @return O objeto MovieCsv correspondente ao registro do CSV.
+     */
     private MovieCsv toRecord(CSVRecord csvRecord) {
-        return new MovieCsv(
-                Integer.valueOf(csvRecord.get(HeadersCsv.YEAR.getHeader())),
-                csvRecord.get(HeadersCsv.TITLE.getHeader()),
-                csvRecord.get(HeadersCsv.STUDIOS.getHeader()),
-                csvRecord.get(HeadersCsv.PRODUCERS.getHeader()),
-                isWinner(csvRecord.get(HeadersCsv.WINNER.getHeader()))
-        );
+
+        try {
+            return new MovieCsv(
+                    Integer.valueOf(csvRecord.get(HeadersCsv.YEAR.getHeader())),
+                    csvRecord.get(HeadersCsv.TITLE.getHeader()),
+                    csvRecord.get(HeadersCsv.STUDIOS.getHeader()),
+                    csvRecord.get(HeadersCsv.PRODUCERS.getHeader()),
+                    isWinner(csvRecord.get(HeadersCsv.WINNER.getHeader())));
+        } catch (NumberFormatException ex) {
+            throw new CsvLoadException("Ano invalido na linha " + csvRecord.getRecordNumber() + " do CSV " + fileName, ex);
+        }
     }
 
     private boolean isWinner(String value) {

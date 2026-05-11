@@ -28,7 +28,6 @@ public class MovieMapper {
 
     public Movie toDomain(MovieEntity movieEntity) {
         return new Movie(
-                movieEntity.id,
                 movieEntity.year,
                 movieEntity.title,
                 movieEntity.studios,

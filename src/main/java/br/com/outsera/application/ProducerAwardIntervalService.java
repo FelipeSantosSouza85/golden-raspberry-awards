@@ -56,7 +56,7 @@ public class ProducerAwardIntervalService {
       int minInterval = intervals.stream()
             .mapToInt(ProducerAwardInterval::interval)
             .min()
-            .orElseThrow(() -> new IllegalStateException("Nao foi possivel calcular o intervalo minimo."));
+            .getAsInt();
 
       LOG.info("Intervalo mínimo entre prêmios encontrado: {}", minInterval);
 
@@ -64,7 +64,7 @@ public class ProducerAwardIntervalService {
       int maxInterval = intervals.stream()
             .mapToInt(ProducerAwardInterval::interval)
             .max()
-            .orElseThrow(() -> new IllegalStateException("Nao foi possivel calcular o intervalo maximo."));
+            .getAsInt();
 
       LOG.info("Intervalo máximo entre prêmios encontrado: {}", maxInterval);
 
