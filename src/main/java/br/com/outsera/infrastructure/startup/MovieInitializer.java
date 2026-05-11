@@ -3,7 +3,7 @@ package br.com.outsera.infrastructure.startup;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import br.com.outsera.application.MovieImportService;
+import br.com.outsera.application.MovieService;
 import io.quarkus.runtime.StartupEvent;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.event.Observes;
@@ -13,10 +13,10 @@ public class MovieInitializer {
 
     private static final Logger LOG = LoggerFactory.getLogger(MovieInitializer.class);
 
-    private final MovieImportService movieImportService;
+    private final MovieService movieService;
 
-    public MovieInitializer(MovieImportService movieImportService) {
-        this.movieImportService = movieImportService;
+    public MovieInitializer(MovieService movieService) {
+        this.movieService = movieService;
     }
 
     /**
@@ -25,6 +25,6 @@ public class MovieInitializer {
      */
     void onStart(@Observes StartupEvent event) {
         LOG.info("Iniciando processo de importacao de filmes a partir do CSV.");
-        movieImportService.importMovies();
+        movieService.importMovies();
     }
 }

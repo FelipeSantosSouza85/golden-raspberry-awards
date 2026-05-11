@@ -57,7 +57,6 @@ Os testes sobem o contexto Quarkus completo, carregam o CSV em H2 em memória e 
 
 - Resposta no formato esperado pela especificação para o CSV padrão.
 - Invariantes do contrato (consistência do `interval`, ordenação `previousWin < followingWin`, `min ≤ max`) — passam com qualquer CSV de entrada.
-- Geração da documentação OpenAPI.
 
 ---
 
@@ -83,15 +82,15 @@ Exemplo de resposta:
 {
   "min": [
     {
-      "producer": "Producer 1",
+      "producer": "Joel Silver",
       "interval": 1,
-      "previousWin": 2008,
-      "followingWin": 2009
+      "previousWin": 1990,
+      "followingWin": 1991
     }
   ],
   "max": [
     {
-      "producer": "Producer 2",
+      "producer": "Matthew Vaughn",
       "interval": 13,
       "previousWin": 2002,
       "followingWin": 2015

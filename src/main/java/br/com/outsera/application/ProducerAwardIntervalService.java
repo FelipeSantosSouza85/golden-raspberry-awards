@@ -9,13 +9,9 @@ import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import br.com.outsera.api.dto.AwardIntervalResponse;
-import br.com.outsera.api.dto.ProducerIntervalResponse;
-import br.com.outsera.api.mapper.AwardIntervalMapper;
-import br.com.outsera.api.mapper.ProducerAwardIntervalMapper;
+import br.com.outsera.domain.AwardInterval;
+import br.com.outsera.domain.Movie;
 import br.com.outsera.domain.ProducerAwardInterval;
-import br.com.outsera.infrastructure.persistence.MovieEntity;
-import br.com.outsera.infrastructure.persistence.MovieRepository;
 import jakarta.enterprise.context.ApplicationScoped;
 
 @ApplicationScoped
@@ -25,31 +21,22 @@ public class ProducerAwardIntervalService {
 
    private static final String AND_REGEX = "(?i)\\s+and\\s+";
 
-   private final MovieRepository movieRepository;
-   private final ProducerAwardIntervalMapper producerAwardIntervalMapper;
-   private final AwardIntervalMapper awardIntervalMapper;
+   private final MovieService movieService;
 
-   public ProducerAwardIntervalService(
-      MovieRepository movieRepository, 
-      ProducerAwardIntervalMapper producerAwardIntervalMapper,
-      AwardIntervalMapper awardIntervalMapper
-   ) {
-      this.movieRepository = movieRepository;
-      this.producerAwardIntervalMapper = producerAwardIntervalMapper;
-      this.awardIntervalMapper = awardIntervalMapper;
+   public ProducerAwardIntervalService(MovieService movieService) {
+      this.movieService = movieService;
    }
 
-
-   public AwardIntervalResponse calculateProducerAwardIntervals() {
+   public AwardInterval calculateProducerAwardIntervals() {
 
       //Recupera os filmes vencedores do banco de dados.
-      List<MovieEntity> winners = movieRepository.listWinners();
+      List<Movie> winners = movieService.listWinners();
 
       LOG.info("Total de filmes vencedores encontrados: {}", winners.size());
 
       if(winners.isEmpty()) {
          LOG.info("Nenhum filme vencedor encontrado. Encerrando cálculo de intervalos de prêmios.");
-         return new AwardIntervalResponse(List.of(), List.of());
+         return new AwardInterval(List.of(), List.of());
       }
 
       //Cria o mapa de produtores e seus anos de vitória.
@@ -62,7 +49,7 @@ public class ProducerAwardIntervalService {
 
       if(intervals.isEmpty()) {
          LOG.info("Nenhum produtor com múltiplas vitórias encontrado. Encerrando cálculo de intervalos de prêmios.");
-         return new AwardIntervalResponse(List.of(), List.of());
+         return new AwardInterval(List.of(), List.of());
       }
 
       //Calcula o intervalo mínimo e máximo entre as vitórias dos produtores.
@@ -82,10 +69,10 @@ public class ProducerAwardIntervalService {
       LOG.info("Intervalo máximo entre prêmios encontrado: {}", maxInterval);
 
       //Filtra os produtores que possuem o intervalo máximo e mínimo calculados.
-      List<ProducerIntervalResponse> filteredMaxIntervals = filterIntervalsByInterval(intervals, maxInterval);
-      List<ProducerIntervalResponse> filteredMinIntervals = filterIntervalsByInterval(intervals, minInterval);
+      List<ProducerAwardInterval> filteredMaxIntervals = filterIntervalsByInterval(intervals, maxInterval);
+      List<ProducerAwardInterval> filteredMinIntervals = filterIntervalsByInterval(intervals, minInterval);
 
-      return awardIntervalMapper.toResponse(filteredMinIntervals, filteredMaxIntervals);
+      return new AwardInterval(filteredMinIntervals, filteredMaxIntervals);
    }
 
 
@@ -95,18 +82,18 @@ public class ProducerAwardIntervalService {
     * @param winners lista de filmes vencedores, onde cada filme contém o nome dos produtores e o ano em que ganhou o prêmio.
     * @return mapa onde a chave é o nome do produtor e o valor é uma lista de anos em que ele ganhou o prêmio.
     */
-   private Map<String, List<Integer>> groupWinsByProducer(List<MovieEntity> winners) {
+   private Map<String, List<Integer>> groupWinsByProducer(List<Movie> winners) {
       
       Map<String, List<Integer>> winsByProducer = new HashMap<>();
 
-      for (MovieEntity winner : winners) {
+      for (Movie winner : winners) {
 
          //Cria uma lista com o nome dos produtores, tratando os casos de múltiplos produtores separados por "and" ou vírgula.
-         List<String> producers = splitProducers(winner.producers);
+         List<String> producers = splitProducers(winner.producers());
 
          //Itera a lista de produtores criada e cria um mapa onde a chave é o nome do produtor e o valor é uma lista de anos em que ele ganhou o prêmio.
          producers.forEach(producer -> {
-               winsByProducer.computeIfAbsent(producer, k -> new ArrayList<>()).add(winner.year);
+               winsByProducer.computeIfAbsent(producer, k -> new ArrayList<>()).add(winner.year());
             });
       }
 
@@ -127,6 +114,7 @@ public class ProducerAwardIntervalService {
          //Recupera o produtor e ordena os anos de vitória em ordem crescente.
          String producer = entry.getKey();
          List<Integer> winYears = entry.getValue().stream()
+                  .distinct()
                   .sorted()
                   .toList();
 
@@ -171,10 +159,9 @@ public class ProducerAwardIntervalService {
     * @param targetInterval intervalo alvo para filtragem.
     * @return lista de respostas contendo os intervalos filtrados.
     */
-   private List<ProducerIntervalResponse> filterIntervalsByInterval(List<ProducerAwardInterval> intervals, int targetInterval) {
+   private List<ProducerAwardInterval> filterIntervalsByInterval(List<ProducerAwardInterval> intervals, int targetInterval) {
       return intervals.stream()
             .filter(interval -> interval.interval() == targetInterval)
-            .map(producerAwardIntervalMapper::toResponse)
             .toList();
    }
 }

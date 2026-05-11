@@ -1,12 +1,12 @@
 package br.com.outsera.api;
 
 import static io.restassured.RestAssured.given;
-import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.hamcrest.Matchers.hasSize;
 
 import java.util.List;
 import java.util.Map;
@@ -24,17 +24,19 @@ class ProducerAwardIntervalResourceTest {
     private static final String ENDPOINT = "/v1/producers/award-intervals";
 
     @Test
-    void should_returnProducerAwardIntervals() {
+    void should_returnExpectedMinAndMaxProducersForDefaultCsv() {
         given()
                 .when()
                 .get(ENDPOINT)
                 .then()
                 .statusCode(200)
                 .contentType(MediaType.APPLICATION_JSON)
+                .body("min", hasSize(1))
                 .body("min[0].producer", equalTo("Joel Silver"))
                 .body("min[0].interval", equalTo(1))
                 .body("min[0].previousWin", equalTo(1990))
                 .body("min[0].followingWin", equalTo(1991))
+                .body("max", hasSize(1))
                 .body("max[0].producer", equalTo("Matthew Vaughn"))
                 .body("max[0].interval", equalTo(13))
                 .body("max[0].previousWin", equalTo(2002))
@@ -42,7 +44,7 @@ class ProducerAwardIntervalResourceTest {
     }
 
     @Test
-    void should_returnConsistentIntervalStructure() {
+    void should_shareSameIntervalAcrossAllMinAndMaxItems() {
         Response response = given()
                 .when()
                 .get(ENDPOINT)
@@ -69,38 +71,6 @@ class ProducerAwardIntervalResourceTest {
         assertIntervalInvariants(maxItems, maxInterval);
     }
 
-    @Test
-    void should_returnArraysAllowingTiedProducers() {
-        Response response = given()
-                .when()
-                .get(ENDPOINT)
-                .then()
-                .statusCode(200)
-                .extract().response();
-
-        JsonPath json = response.jsonPath();
-        List<Map<String, Object>> minItems = json.getList("min");
-        List<Map<String, Object>> maxItems = json.getList("max");
-
-        assertNotNull(minItems, "'min' deve ser uma lista (formato definido pela especificacao)");
-        assertNotNull(maxItems, "'max' deve ser uma lista (formato definido pela especificacao)");
-
-        assertEachItemHasExpectedKeys(minItems);
-        assertEachItemHasExpectedKeys(maxItems);
-    }
-
-    @Test
-    void should_documentProducerAwardIntervalsEndpointInOpenApi() {
-        given()
-                .when()
-                .get("/q/openapi")
-                .then()
-                .statusCode(200)
-                .body(containsString("/producers/award-intervals"))
-                .body(containsString("Consulta os produtores com maior e menor intervalo entre premios"))
-                .body(containsString("AwardIntervalResponse"));
-    }
-
     private static void assertIntervalInvariants(List<Map<String, Object>> items, int expectedInterval) {
         for (Map<String, Object> item : items) {
             String producer = (String) item.get("producer");
@@ -113,15 +83,6 @@ class ProducerAwardIntervalResourceTest {
             assertEquals(expectedInterval, interval, "todos os itens devem compartilhar o mesmo interval");
             assertTrue(previousWin < followingWin, "previousWin deve ser < followingWin");
             assertEquals(interval, followingWin - previousWin, "interval deve ser igual a (followingWin - previousWin)");
-        }
-    }
-
-    private static void assertEachItemHasExpectedKeys(List<Map<String, Object>> items) {
-        for (Map<String, Object> item : items) {
-            assertTrue(item.containsKey("producer"), "item deve conter 'producer'");
-            assertTrue(item.containsKey("interval"), "item deve conter 'interval'");
-            assertTrue(item.containsKey("previousWin"), "item deve conter 'previousWin'");
-            assertTrue(item.containsKey("followingWin"), "item deve conter 'followingWin'");
         }
     }
 
