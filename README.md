@@ -57,6 +57,7 @@ Os testes sobem o contexto Quarkus completo, carregam o CSV em H2 em memória e 
 
 - Resposta no formato esperado pela especificação para o CSV padrão.
 - Invariantes do contrato (consistência do `interval`, ordenação `previousWin < followingWin`, `min ≤ max`) — passam com qualquer CSV de entrada.
+- Situação de empate simultâneo em `min` e `max`, usando o CSV de teste `src/test/resources/Movielist-tie-min-max.csv` via `QuarkusTestProfile`.
 
 ---
 
@@ -134,6 +135,8 @@ src/main/java/br/com/outsera/
 ├── application/      → Serviços de negócio (carga e cálculo de intervalos)
 ├── domain/           → Modelo de domínio (records, sem dependências de framework)
 └── infrastructure/   → Persistência (JPA/Panache), leitura de CSV, inicialização
+src/test/resources/
+└── Movielist-tie-min-max.csv → Massa isolada para validar empates em min e max
 ```
 
 ---
