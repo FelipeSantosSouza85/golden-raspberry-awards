@@ -5,7 +5,11 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVParser;
@@ -18,12 +22,13 @@ import jakarta.enterprise.context.ApplicationScoped;
 @ApplicationScoped
 public class MovieCsvLoader {
 
+    private static final String AND_REGEX = "(?i)\\s+and\\s+";
 
     @ConfigProperty(name = "app.csv.file-name", defaultValue = "Movielist.csv")
     String fileName;
 
     public List<MovieCsv> loadMovies() {
-        
+
         InputStream inputStream = Thread.currentThread()
                 .getContextClassLoader()
                 .getResourceAsStream(fileName);
@@ -56,12 +61,6 @@ public class MovieCsvLoader {
         }
     }
 
-    /**
-     * Converte um registro do CSV em um objeto MovieCsv. 
-     * O método realiza a conversão dos campos e trata possíveis erros de formatação, como anos inválidos.   
-     * @param csvRecord O registro do CSV a ser convertido.
-     * @return O objeto MovieCsv correspondente ao registro do CSV.
-     */
     private MovieCsv toRecord(CSVRecord csvRecord) {
 
         try {
@@ -69,11 +68,23 @@ public class MovieCsvLoader {
                     Integer.valueOf(csvRecord.get(HeadersCsv.YEAR.getHeader())),
                     csvRecord.get(HeadersCsv.TITLE.getHeader()),
                     csvRecord.get(HeadersCsv.STUDIOS.getHeader()),
-                    csvRecord.get(HeadersCsv.PRODUCERS.getHeader()),
+                    splitProducers(csvRecord.get(HeadersCsv.PRODUCERS.getHeader())),
                     isWinner(csvRecord.get(HeadersCsv.WINNER.getHeader())));
         } catch (NumberFormatException ex) {
             throw new CsvLoadException("Ano invalido na linha " + csvRecord.getRecordNumber() + " do CSV " + fileName, ex);
         }
+    }
+
+    /**
+     * Realiza a separacao dos produtores considerando os delimitadores ',' e 'and'.
+     * @param producers A string contendo os nomes dos produtores, possivelmente separados por ',' ou 'and'.
+     * @return Um conjunto de nomes de produtores, sem duplicatas e sem espacos em branco nas extremidades.
+     */
+    private Set<String> splitProducers(String producers) {
+        return Arrays.stream(producers.replaceAll(AND_REGEX, ",").split(","))
+                .map(String::trim)
+                .filter(name -> !name.isBlank())
+                .collect(Collectors.toCollection(HashSet::new));
     }
 
     private boolean isWinner(String value) {

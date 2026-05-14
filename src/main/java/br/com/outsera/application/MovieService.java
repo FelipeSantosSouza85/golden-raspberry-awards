@@ -1,15 +1,18 @@
 package br.com.outsera.application;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import br.com.outsera.domain.Movie;
+import br.com.outsera.domain.ProducerWin;
 import br.com.outsera.infrastructure.csv.MovieCsv;
 import br.com.outsera.infrastructure.csv.MovieCsvLoader;
 import br.com.outsera.infrastructure.persistence.MovieEntity;
 import br.com.outsera.infrastructure.persistence.MovieRepository;
+import br.com.outsera.infrastructure.persistence.ProducerEntity;
 import br.com.outsera.infrastructure.persistence.mapper.MovieMapper;
 import br.com.outsera.shared.exception.CsvLoadException;
 import br.com.outsera.shared.exception.MovieImportException;
@@ -35,10 +38,6 @@ public class MovieService {
         this.movieMapper = movieMapper;
     }
 
-    /**
-     * Importa os filmes a partir do arquivo CSV e os persiste no banco de dados.
-     * O processo é realizado dentro de uma transação para garantir a integridade dos dados.
-     */
     @Transactional
     public void importMovies() {
 
@@ -46,14 +45,13 @@ public class MovieService {
 
         LOG.info("Total de filmes carregados do CSV: {}", movies.size());
 
-        persistMovies(movies);
+        Map<String, ProducerEntity> mapProducersByName = createMapProducers(movies);
+
+        LOG.info("Total de produtores unicos: {}", mapProducersByName.size());
+
+        persistMovies(movies, mapProducersByName);
     }
 
-    /**
-     * Carrega a lista de filmes a partir do arquivo CSV utilizando o MovieCsvLoader.
-     * Em caso de falha na leitura do arquivo, uma MovieImportException é lançada.
-     * @return A lista de filmes carregados do CSV.
-     */
     private List<MovieCsv> loadMoviesFromCsv() {
         try {
             return movieCsvLoader.loadMovies();
@@ -63,13 +61,32 @@ public class MovieService {
     }
 
     /**
-     * Persiste a lista de filmes no banco de dados.
-     * @param movies A lista de filmes a serem persistidos.
+     * Cria um mapa de produtores a partir da lista de filmes,
+     * onde a chave é o nome do produtor e o valor é a entidade do produtor.
+     * Utiliza computeIfAbsent para garantir que cada produtor seja criado apenas uma vez, mesmo que apareça em varios filmes.
      */
-    private void persistMovies(List<MovieCsv> movies) {
+    private Map<String, ProducerEntity> createMapProducers(List<MovieCsv> movies) {
 
+        Map<String, ProducerEntity> producersByName = new HashMap<>();
+        for (MovieCsv movie : movies) {
+            for (String name : movie.producers()) {
+                producersByName.computeIfAbsent(name, ProducerEntity::new);
+            }
+        }
+        return producersByName;
+    }
+
+    /**
+     * Persiste a lista de filmes no banco de dados, associando os produtores correspondentes a partir do mapa criado anteriormente.
+     * @param movies A lista de filmes a ser persistida, carregada do CSV.
+     * @param mapProducersByName O mapa de produtores, onde a chave é o nome do produtor e o valor é a entidade do produtor correspondente.
+     */
+    private void persistMovies(List<MovieCsv> movies, Map<String, ProducerEntity> mapProducersByName) {
+
+        //Cria uma lista de entidades de filme a partir da lista de filmes do CSV,
+        // utilizando o mapper para converter cada filme e associar os produtores correspondentes a partir do mapa criado anteriormente.
         List<MovieEntity> movieEntities = movies.stream()
-                .map(movieMapper::toEntity)
+                .map(movie -> movieMapper.toEntity(movie, mapProducersByName))
                 .toList();
 
         LOG.info("Total de filmes a serem persistidos: {}", movieEntities.size());
@@ -77,14 +94,10 @@ public class MovieService {
         movieRepository.persist(movieEntities);
 
         LOG.info("Importacao de filmes concluida com sucesso. Total de filmes persistidos: {}", movieEntities.size());
-     }
+    }
 
-     /**
-      * Recupera a lista de filmes vencedores do banco de dados e os mapeia para o modelo de domínio Movie.
-      * @return A lista de filmes vencedores mapeados para o modelo de domínio Movie.
-      */
-     public List<Movie> listWinners() {
-        return movieMapper.toMovieList(movieRepository.listWinners());
-     }
+    public List<ProducerWin> listProducersWins() {
+        return movieRepository.listProducersWins();
+    }
 
 }

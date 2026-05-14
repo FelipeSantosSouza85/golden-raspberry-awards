@@ -1,17 +1,17 @@
 package br.com.outsera.application;
 
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import br.com.outsera.domain.AwardInterval;
-import br.com.outsera.domain.Movie;
 import br.com.outsera.domain.ProducerAwardInterval;
+import br.com.outsera.domain.ProducerWin;
 import jakarta.enterprise.context.ApplicationScoped;
 
 @ApplicationScoped
@@ -19,149 +19,88 @@ public class ProducerAwardIntervalService {
 
    private static final Logger LOG = LoggerFactory.getLogger(ProducerAwardIntervalService.class);
 
-   private static final String AND_REGEX = "(?i)\\s+and\\s+";
-
    private final MovieService movieService;
 
    public ProducerAwardIntervalService(MovieService movieService) {
       this.movieService = movieService;
    }
 
+   /**
+    * Calcula os intervalos entre vitorias consecutivas de produtores, e identifica os produtores com o menor e maior intervalo.
+     * O intervalo é calculado apenas entre vitorias distintas (anos diferentes) do mesmo produtor.
+     * Produtores com menos de duas vitorias distintas nao geram intervalo.
+    * @return Um objeto AwardInterval contendo os produtores com o menor e maior intervalo entre vitorias consecutivas.
+    */
    public AwardInterval calculateProducerAwardIntervals() {
 
-      //Recupera os filmes vencedores do banco de dados.
-      List<Movie> winners = movieService.listWinners();
+      // Carrega a lista de vitorias dos produtores, onde cada vitoria representa um par (produtor, ano).
+      List<ProducerWin> wins = movieService.listProducersWins();
 
-      LOG.info("Total de filmes vencedores encontrados: {}", winners.size());
+      LOG.info("Total de vitorias (pares produtor x ano) encontradas: {}", wins.size());
 
-      if(winners.isEmpty()) {
-         LOG.info("Nenhum filme vencedor encontrado. Encerrando cálculo de intervalos de prêmios.");
+      if (wins.isEmpty()) {
+         LOG.info("Nenhuma vitoria encontrada. Encerrando calculo de intervalos de premios.");
          return new AwardInterval(List.of(), List.of());
       }
 
-      //Cria o mapa de produtores e seus anos de vitória.
-      Map<String, List<Integer>> producerWins = groupWinsByProducer(winners);
+      List<ProducerAwardInterval> intervals = calculateIntervals(wins);
 
-      LOG.info("Total de produtores vencedores encontrados: {}", producerWins.size());
-
-      //Calcula os intervalos de prêmios para cada produtor.
-      List<ProducerAwardInterval> intervals = calculateIntervals(producerWins);
-
-      if(intervals.isEmpty()) {
-         LOG.info("Nenhum produtor com múltiplas vitórias encontrado. Encerrando cálculo de intervalos de prêmios.");
+      if (intervals.isEmpty()) {
+         LOG.info("Nenhum produtor com multiplas vitorias encontrado. Encerrando calculo de intervalos de premios.");
          return new AwardInterval(List.of(), List.of());
       }
 
-      //Calcula o intervalo mínimo e máximo entre as vitórias dos produtores.
-      int minInterval = intervals.stream()
-            .mapToInt(ProducerAwardInterval::interval)
-            .min()
-            .getAsInt();
-
-      LOG.info("Intervalo mínimo entre prêmios encontrado: {}", minInterval);
-
-      //Calcula o intervalo máximo entre as vitórias dos produtores
-      int maxInterval = intervals.stream()
-            .mapToInt(ProducerAwardInterval::interval)
-            .max()
-            .getAsInt();
-
-      LOG.info("Intervalo máximo entre prêmios encontrado: {}", maxInterval);
-
-      //Filtra os produtores que possuem o intervalo máximo e mínimo calculados.
-      List<ProducerAwardInterval> filteredMaxIntervals = filterIntervalsByInterval(intervals, maxInterval);
-      List<ProducerAwardInterval> filteredMinIntervals = filterIntervalsByInterval(intervals, minInterval);
-
-      return new AwardInterval(filteredMinIntervals, filteredMaxIntervals);
-   }
-
-
-   /**
-    * Agrupa os anos de vitória dos produtores a partir da lista de filmes vencedores, 
-    * criando um mapa onde a chave é o nome do produtor e o valor é uma lista de anos em que ele ganhou o prêmio.
-    * @param winners lista de filmes vencedores, onde cada filme contém o nome dos produtores e o ano em que ganhou o prêmio.
-    * @return mapa onde a chave é o nome do produtor e o valor é uma lista de anos em que ele ganhou o prêmio.
-    */
-   private Map<String, List<Integer>> groupWinsByProducer(List<Movie> winners) {
+      // Agrupa os intervalos por valor de intervalo, para facilitar a identificacao dos menores e maiores intervalos.
+      Map<Integer, List<ProducerAwardInterval>> intervalsByValue = intervals.stream()
+                .collect(Collectors.groupingBy(ProducerAwardInterval::interval));
       
-      Map<String, List<Integer>> winsByProducer = new HashMap<>();
+      // Identifica o menor e o maior intervalo entre vitorias consecutivas.
+      int minInterval = Collections.min(intervalsByValue.keySet());
+      int maxInterval = Collections.max(intervalsByValue.keySet());
 
-      for (Movie winner : winners) {
+      LOG.info("Intervalo minimo: {} | Intervalo maximo: {}", minInterval, maxInterval);
 
-         //Cria uma lista com o nome dos produtores, tratando os casos de múltiplos produtores separados por "and" ou vírgula.
-         List<String> producers = splitProducers(winner.producers());
-
-         //Itera a lista de produtores criada e cria um mapa onde a chave é o nome do produtor e o valor é uma lista de anos em que ele ganhou o prêmio.
-         producers.forEach(producer -> {
-               winsByProducer.computeIfAbsent(producer, k -> new ArrayList<>()).add(winner.year());
-            });
-      }
-
-      return winsByProducer;
+      return new AwardInterval(intervalsByValue.get(minInterval), intervalsByValue.get(maxInterval));
    }
 
    /**
-    * Calcula os intervalos de prêmios para cada produtor a partir do mapa de produtores e seus anos de vitória.
-    * @param winsByProducer mapa onde a chave é o nome do produtor e o valor é uma lista de anos em que ele ganhou o prêmio.
-    * @return lista de objetos de domínio contendo os dados do intervalo de prêmios para cada produtor.
+    * Calcula os intervalos consecutivos entre vitorias de cada produtor.
+    * Espera uma lista de produtores vencedores ordenado por (produtor ASC, ano ASC).
+    * Produtores com menos de duas vitorias distintas nao geram intervalo.
     */
-   private List<ProducerAwardInterval> calculateIntervals(Map<String, List<Integer>> winsByProducer) {
-   
+   private List<ProducerAwardInterval> calculateIntervals(List<ProducerWin> wins) {
+
       List<ProducerAwardInterval> intervals = new ArrayList<>();
+      String currentProducer = null;
+      Integer previousWinYear = null;
 
-      for (Map.Entry<String, List<Integer>> entry : winsByProducer.entrySet()) {
+      // Itera a lista de vitorias, calculando o intervalo entre vitorias consecutivas do mesmo produtor.
+      for (ProducerWin win : wins) {
 
-         //Recupera o produtor e ordena os anos de vitória em ordem crescente.
-         String producer = entry.getKey();
-         List<Integer> winYears = entry.getValue().stream()
-                  .distinct()
-                  .sorted()
-                  .toList();
-
-         //Caso o produtor não tenha 2 vitórias é ignorado.
-         if(winYears.size() < 2) {
+         // Se o produtor da iteração for diferente do produtor atual, inicia o acompanhamento de um novo produtor.
+         if (!win.producer().equals(currentProducer)) {
+            currentProducer = win.producer();
+            previousWinYear = win.year();
             continue;
          }
 
-         //Itera sobre os anos de vitória, começando o contador no segundo elemento, para calcular o intervalo entre as vitórias.
-         for (int index = 1; index < winYears.size(); index++) {
-
-            //Recupera o ano da vitória anterior e o da seguinte e calcula o intervalo entre elas.
-            int previousWin = winYears.get(index - 1);
-            int followingWin = winYears.get(index);
-            int interval = followingWin - previousWin;
-
-            //Cria um objeto de domínio com o os dados do intervalo e adiciona na lista de intervalos.
-            intervals.add(new ProducerAwardInterval(producer, interval, previousWin, followingWin));
+         // Se o produtor da iteração for o mesmo da iteração anterior, e for o mesmo ano da última vitória registrada,
+         // ignora a iteração atual para evitar intervalos zero entre vitórias no mesmo ano.
+         if(win.year().equals(previousWinYear)) {
+            continue;
          }
+
+         // Se o produtor da iteração for o mesmo da iteração anterior, e for um ano diferente da última vitória registrada,
+         // calcula o intervalo entre as vitórias e registra um novo intervalo para o produtor atual.
+         intervals.add(new ProducerAwardInterval(
+               currentProducer,
+               win.year() - previousWinYear,
+               previousWinYear,
+               win.year()));
+
+         previousWinYear = win.year();
       }
-   
+
       return intervals;
-   }
-
-   /**
-    * Cria uma lista com o nome dos produtores a partir de uma string,
-    * tratando os casos de múltiplos produtores separados por "and" ou vírgula.
-    * @param producers string contendo o nome dos produtores, podendo conter múltiplos produtores separados por "and" ou vírgula.
-    * @return lista de strings contendo o nome dos produtores, sem espaços em branco no início ou no fim, e sem elementos em branco.
-    */
-   private List<String> splitProducers(String producers) {
-      return Arrays.stream(producers.replaceAll(AND_REGEX, ",").split(","))
-               .map(String::trim)
-               .filter(name -> !name.isBlank())
-               .toList();
-   }
-
-
-   /**
-    * Filtra os intervalos de prêmios por um intervalo específico.
-    * @param intervals lista de intervalos de prêmios.
-    * @param targetInterval intervalo alvo para filtragem.
-    * @return lista de respostas contendo os intervalos filtrados.
-    */
-   private List<ProducerAwardInterval> filterIntervalsByInterval(List<ProducerAwardInterval> intervals, int targetInterval) {
-      return intervals.stream()
-            .filter(interval -> interval.interval() == targetInterval)
-            .toList();
    }
 }

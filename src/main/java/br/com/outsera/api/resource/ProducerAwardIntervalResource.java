@@ -1,4 +1,4 @@
-package br.com.outsera.api;
+package br.com.outsera.api.resource;
 
 import org.eclipse.microprofile.openapi.annotations.Operation;
 import org.eclipse.microprofile.openapi.annotations.media.Content;
