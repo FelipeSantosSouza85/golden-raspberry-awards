@@ -128,6 +128,18 @@ O arquivo é carregado do classpath em `src/main/resources/Movielist.csv`.
 
 ---
 
+## Modelagem de dados
+
+O Hibernate gera três tabelas no boot (`drop-and-create`):
+
+- **`movies`** — `id`, `movie_year`, `title`, `studios`, `winner`
+- **`producers`** — `id`, `name` (UNIQUE)
+- **`movie_producers`** — tabela de junção `(movie_id, producer_id)`, com chave composta
+
+A coluna `producers` do CSV é tokenizada uma única vez na carga inicial (por `,` ou ` and `). Cada produtor distinto vira uma linha em `producers`, e cada associação filme↔produtor vira uma linha em `movie_producers`. O cálculo de intervalos consulta a tabela de junção diretamente, sem precisar parsear strings em runtime.
+
+---
+
 ## Estrutura do projeto
 
 ```text
